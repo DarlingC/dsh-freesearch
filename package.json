@@ -72,5 +72,9 @@
                 "@deepseek-ai/dsh-client-runtime"
             ],
             "platform": "web"
+        },
+        "engines": {
+            "dsh": ">=0.1.1-rc.1"
         }
     }
+}
