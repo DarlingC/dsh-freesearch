@@ -57,8 +57,9 @@ dsh 默认的搜索 provider 依赖 DeepSeek 官方 API key（`DEEPSEEK_API_KEY`
 | `keenable` | Keenable | 免费 | **无 key 也可用**（MCP 匿名），配 key 提升额度 |
 | `perplexity` | Perplexity | 付费 | 需 `PERPLEXITY_API_KEY` |
 | `deepseek-official` | DeepSeek 官方 | 付费 | 需 `DEEPSEEK_API_KEY` |
+| `gemini` | Gemini (Google Search Grounding) | 免费层 | 需 `GEMINI_API_KEY`（AI Studio 免费层；走 Google 联网 grounding） |
 
-- **默认引擎为 `bing`**（免费且最稳定），安装后开箱即用。
+- **默认引擎为 `bing`**（免费且最稳定），安装后开箱即用；**`gemini` 建议作为回退/按需引擎**，不要默认首选（见下方配额警示）。
 - **自动回退**：任何引擎失败（免费限流/反爬，付费缺 key/无效/网络错误）都会自动轮流尝试下一个引擎——先试其他已配 key 的付费引擎，再试免费引擎（Bing/AnySearch 等），并在结果中附带回退提示——搜索不会因引擎问题直接失败。
 - **设置页有官网链接**：免费引擎显示"访问官网 →"，付费引擎显示"获取 API Key →"（新标签页打开）：
   - Exa：<https://dashboard.exa.ai/api-keys>
@@ -73,6 +74,17 @@ dsh 默认的搜索 provider 依赖 DeepSeek 官方 API key（`DEEPSEEK_API_KEY`
 - **Exa**：公开 MCP 端点（`mcp.exa.ai/mcp`）支持匿名调用，不配 key 也能用；配置 `EXA_API_KEY` 后可获得更高额度。
 - **Tavily**：通过 `x-tavily-access-mode: keyless` 头走 keyless 匿名额度，不配 key 即可用；配置 `TAVILY_API_KEY` 后走账号档，额度更高、结果质量更稳定。
 - **Keenable**：无 key 时走其公开 MCP 端点（`api.keenable.ai/mcp`）匿名调用；配置 `KEENABLE_API_KEY` 后走 REST API（`api.keenable.ai/v1/search`），额度更高、按组织限流。
+
+#### Gemini 联网搜索引擎（Google Search Grounding）
+
+- **原理**：调用 Gemini API 的 `generateContent` + `tools:[{google_search:{}}]`（Google Search Grounding），模型在生成时联网并返回 `groundingChunks`（来源 `{uri,title}`）+ `groundingSupports`（回答段落与来源的映射，用于拼 snippet）。结果自动转成统一 `{url,title,snippet}` 形式接入本插件。
+- **Key 配置**：在 AI Studio（aistudio.google.com/apikey）免费创建 `GEMINI_API_KEY`，放入 `~/.dsh/.credentials.yaml` 的 `refs.GEMINI_API_KEY`，或在 `~/.dsh/settings.yaml` 的 `free-search:` 下设置 `geminiApiKey`。
+- **模型**：默认 `gemini-2.5-flash`（免费层唯一已实测可联网的模型）。当前 AI Studio 免费层**无需绑卡**即可用 Google Search grounding。
+- **⚠️ 配额警示（务必注意）**：
+  - `gemini-2.5-flash` **文本输出 RPD 仅约 20/天** —— 千万别把它当常规文本问答模型用，会秒爆。本引擎只走 grounding（联网搜索），计的是**搜索 RPD**，不占那 20 次文本额度。
+  - **搜索 RPD 约 1,500/天**（与 Flash-Lite 共享），**RPM 约 5**。每次搜索引擎调用 = 1 次 grounded prompt = 1 搜索 RPD。超限会返回 HTTP 429，本插件会**自动回退到其它免费引擎**（Bing 等），搜索不会因此失败。
+  - 因此**不建议把 `gemini` 设为默认首选引擎**（`free-search.provider: gemini`），默认 `bing` + 失败自动回退即可；把 `gemini` 当按需/回退引擎最稳。
+- **与其它引擎差异**：Gemini grounding 返回的是"模型 Ground 到的来源集合"，不是像 Bing 那样的排序结果列表——数量不固定、通常偏少、无优先级；`maxResults` 只能做客户端截断。作为默认搜索体验与真实搜索引擎略有不同。
 
 ### 安装
 
@@ -316,8 +328,9 @@ This plugin provides multiple free search engines with automatic fallback, compl
 | `keenable` | Keenable | Free | **Usable without a key** (anonymous MCP); configure a key for higher quota |
 | `perplexity` | Perplexity | Paid | Requires `PERPLEXITY_API_KEY` |
 | `deepseek-official` | DeepSeek Official | Paid | Requires `DEEPSEEK_API_KEY` |
+| `gemini` | Gemini (Google Search Grounding) | Free tier | Requires `GEMINI_API_KEY` (AI Studio free tier; uses Google Search Grounding) |
 
-- **Default engine is `bing`** (free and most stable), ready to use out of the box after installation.
+- **Default engine is `bing`** (free and most stable), ready to use out of the box. **Prefer keeping `gemini` as a fallback / on-demand engine** rather than the default (see quota warning below).
 - **Auto-failover**: any engine failure (rate-limited free engine, or missing/invalid paid key, network error) automatically tries the next engine — the configured engine first, then other engines (exa/tavily/keenable are tried even without a key because they have built-in keyless quota), then the remaining free engines (Bing/AnySearch etc.) — with a note attached to the results naming the engine that actually served them (e.g. `Note: perplexity unavailable or failed, using exa.`). Search never fails outright because of engine issues.
 - **Official Links in Settings**: Free engines display "Visit Website →", while paid engines display "Get API Key →" (opens in a new tab):
   - Exa: <https://dashboard.exa.ai/api-keys>
@@ -332,6 +345,17 @@ This plugin provides multiple free search engines with automatic fallback, compl
 - **Exa**: its public MCP endpoint (`mcp.exa.ai/mcp`) supports anonymous requests, so it works without a key; configuring `EXA_API_KEY` grants a higher usage quota.
 - **Tavily**: offers keyless anonymous quota via the `x-tavily-access-mode: keyless` header — it works without a key; configuring `TAVILY_API_KEY` switches to the account tier for higher quota and more stable results.
 - **Keenable**: without a key it is called via its public MCP endpoint (`api.keenable.ai/mcp`); configuring `KEENABLE_API_KEY` switches to the REST API (`api.keenable.ai/v1/search`) for higher quota and organization-scoped rate limits.
+
+#### Gemini live web search (Google Search Grounding)
+
+- **How it works**: calls `generateContent` with `tools:[{google_search:{}}]` (Google Search Grounding); the model searches live during generation and returns `groundingChunks` (sources `{uri,title}`) + `groundingSupports` (answer-segment → chunk mapping used to build the snippet). Results are normalized into the plugin's unified `{url,title,snippet}` shape.
+- **Key**: create a free `GEMINI_API_KEY` at AI Studio (aistudio.google.com/apikey) and store it in `refs.GEMINI_API_KEY` under `~/.dsh/.credentials.yaml`, or set `geminiApiKey` under `free-search:` in `~/.dsh/settings.yaml`.
+- **Model**: defaults to `gemini-2.5-flash` (the only free-tier model verified to work online here). Google Search Grounding is available on the AI Studio **free tier with no credit card**.
+- **⚠️ Quota warning (important)**:
+  - `gemini-2.5-flash` has a **text-output RPD of only ~20/day** — do **not** use it as a general text model or you will exhaust it instantly. This engine only uses grounding (web search), which counts against the **search RPD**, not the text quota.
+  - **Search RPD ≈ 1,500/day** (shared with Flash-Lite), **RPM ≈ 5**. Each engine call = 1 grounded prompt = 1 search RPD. Exceeding it returns HTTP 429, and this plugin **auto-falls-back to other free engines** (Bing, etc.), so search never hard-fails.
+  - So keep `provider: bing` as default and let `gemini` act as a fallback / on-demand engine rather than the primary load.
+- **Difference vs. other engines**: Gemini grounding returns the set of sources the model grounded on — not a ranked SERP list like Bing/DDG. Count is not fixed and is usually small, with no ordering; `maxResults` can only truncate client-side.
 
 ### Installation
 

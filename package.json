@@ -1,6 +1,6 @@
 {
     "name": "@darlingc/dsh-freesearch",
-    "version": "0.5.3",
+    "version": "0.5.4",
     "description": "Free web search for DeepSeek Harness: 11 engines (Bing/DuckDuckGo/AnySearch/SearXNG/Exa/Tavily/Keenable keyless + Gemini grounding) + time filtering + platform search + web_fetch, with web settings UI.",
     "type": "module",
     "main": "lib/index.js",
@@ -14,6 +14,11 @@
         "lib/client.js",
         "cordis.patch.yml"
     ],
+    "scripts": {
+        "test": "node scripts/check-version.mjs",
+        "check:version": "node scripts/check-version.mjs",
+        "postversion": "node scripts/check-version.mjs"
+    },
     "keywords": [
         "deepseek-harness",
         "dsh",
