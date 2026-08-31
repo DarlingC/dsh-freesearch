@@ -78,6 +78,14 @@ jobs:
         # 选自动生成而非“用 git tag message 作 body”：现有 tag 多为轻量 tag
         # （无附注消息），用 tag message 会得到空 body；自动生成始终有内容更省心。
         # 依赖顶部 permissions 已提升为 contents: write。
+        #
+        # ⚠️ if: always() —— Release 创建必须不依赖 npm 步骤。
+        #   场景：维护者不走 CI/CD 发布 npm（不配 NPM_TOKEN、npm 在本机做），
+        #   此时上方 `npm stage publish` 步骤因缺 NPM_TOKEN 会失败；若不写
+        #   if: always()，该步骤失败会让后续 Release 步骤被跳过，导致 tag push
+        #   后不自动建 Release。加上 if: always() 后 Release 始终执行，
+        #   与 npm 步骤互不阻塞（与文件头注释“二者互不阻塞”的意图一致）。
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
