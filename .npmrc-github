@@ -1,0 +1,18 @@
+# Dedicated npm config for publishing this package to GitHub Packages.
+# NOT auto-loaded (kept out of the project root .npmrc on purpose) so it never
+# hijacks normal installs or the existing npmjs Staged Publishing flow.
+#
+# Usage (local, no CI/CD):
+#   export GITHUB_TOKEN=<GitHub PAT with `write:packages` scope>
+#   npm publish --registry=https://npm.pkg.github.com/ --userconfig=.npmrc-github
+#
+# Install from GitHub Packages (consumer side):
+#   export GITHUB_TOKEN=<GitHub PAT with `read:packages`>
+#   npm install @darlingc/dsh-freesearch --registry=https://npm.pkg.github.com/
+#   (or scope it in a consumer .npmrc:  @darlingc:registry=https://npm.pkg.github.com/)
+#
+# Scope routing: only the @darlingc scope goes to GitHub Packages; everything
+# else keeps resolving from the default npmjs registry.
+@darlingc:registry=https://npm.pkg.github.com/
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+always-auth=true

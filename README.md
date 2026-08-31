@@ -122,6 +122,29 @@ dsh web
 
 > ⚠️ 依赖：CI 的 `npm stage publish` 需要 GitHub 仓库配置 `NPM_TOKEN` secret（npmjs.com → Access Tokens → Publish 类型 token）。且该包需先在 npm registry 上存在（首次发布无法 stage，需先在网页/本地完成一次正式发布）。
 
+#### 发布到 GitHub Packages（本地，可选，不走 CI/CD）
+
+除 npmjs 外，也可把本包发布到 **GitHub Packages**（`npm.pkg.github.com`，归属 `DarlingC` 组织）。仓库内置了专用 npm 配置 `.npmrc-github`，它**不会自动加载**，因此不会影响常规安装或上方 npmjs Staged Publishing 流程。
+
+```sh
+# 1) 生成带 write:packages 权限的 GitHub PAT（Settings → Developer settings → Personal access tokens）
+export GITHUB_TOKEN=ghp_xxx
+
+# 2) 用专用配置发布到 GitHub Packages（版本号须 >= 已存在版本）
+npm publish --registry=https://npm.pkg.github.com/ --userconfig=.npmrc-github
+```
+
+从 GitHub Packages 安装：
+
+```sh
+export GITHUB_TOKEN=ghp_xxx   # 需 read:packages 权限
+dsh plugin --profile web add @darlingc/dsh-freesearch --registry=https://npm.pkg.github.com/
+# 或在用户/项目 .npmrc 里加一行让该 scope 走 GitHub Packages：
+#   @darlingc:registry=https://npm.pkg.github.com/
+```
+
+> 📌 说明：GitHub Packages 适合「仓库内私有/组织内发布」场景；对外推荐走 npmjs（上方 Staged Publishing）。两套 registry 互不影响，tag push 自动建的 GitHub Release（见 `.github/workflows/publish.yml`）与 GitHub Packages 发布相互独立。
+
 ### 使用
 
 #### 网页设置（推荐）
