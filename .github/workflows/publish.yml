@@ -1,9 +1,12 @@
-# @darlingc/dsh-freesearch — CI 自动提交到 npm 暂存队列（Staged Publishing）
+# @darlingc/dsh-freesearch — CI 自动提交到 npm 暂存队列（Staged Publishing）+ 自动建 GitHub Release
 # 触发：push 到 v* tag（例如 v0.5.0）或手动 workflow_dispatch。
-# 流程：CI 用 `npm stage publish` 把本版本提交到 npm “Staged Packages” 暂存队列
-#       （此步骤不会触发账号 2FA，也不需要 OTP）。
+# 流程：1) CI 用 `npm stage publish` 把本版本提交到 npm “Staged Packages” 暂存队列
+#          （此步骤不会触发账号 2FA，也不需要 OTP）。
 #       之后由维护者在 npmjs.com 网页对暂存包人工 Approve / Promote（提示词用户
 #       是设备认证，能通过该 2FA），Promote 后才真正对外可安装。
+#       2) 用 softprops/action-gh-release 为该 tag 自动建 GitHub Release
+#          （generate_release_notes: true，自动汇总 PR/提交生成 changelog）。
+#          Release 创建不依赖 npm 的 stage/approve 结果，二者互不阻塞。
 #
 # ⚠️ 依赖：
 #   1) CI 执行 `npm stage publish` 需要 npm 发布凭证。请先在本仓库配置 GitHub
@@ -25,7 +28,8 @@ on:
   workflow_dispatch:    # 可选：手动触发
 
 permissions:
-  contents: read        # 仅读仓库内容，无需写（不用 OIDC，也不用自动建 Release）
+  # npm stage publish 只需读仓库；但自动建 GitHub Release 需要写 contents。
+  contents: write
 
 concurrency:
   group: npm-stage
@@ -67,3 +71,14 @@ jobs:
         run: npm stage publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        # 为该 v* tag 自动建 GitHub Release。用 softprops/action-gh-release@v2，
+        # generate_release_notes: true 让 GitHub 依据 PR/提交自动汇出 changelog。
+        # 选自动生成而非“用 git tag message 作 body”：现有 tag 多为轻量 tag
+        # （无附注消息），用 tag message 会得到空 body；自动生成始终有内容更省心。
+        # 依赖顶部 permissions 已提升为 contents: write。
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
