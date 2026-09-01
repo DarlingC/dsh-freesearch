@@ -9,8 +9,8 @@
 ## 中文
 
 <div align="center">
-  <a href="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-free1.png">
-    <img src="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-free1.png" alt="免费引擎设置 (Bing)" width="820" />
+  <a href="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-free1.png">
+    <img src="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-free1.png" alt="免费引擎设置 (Bing)" width="820" />
   </a>
   <br>
   <sub>▲ 免费引擎（以Bing为例）</sub>
@@ -36,7 +36,7 @@ dsh 默认的搜索 provider 依赖 DeepSeek 官方 API key（`DEEPSEEK_API_KEY`
 - **统一引擎回退** —— 任何引擎失败（付费/免费，缺 key/401/限流/网络）自动轮流尝试下一个引擎：首选引擎 → 其他引擎（exa/tavily/keenable 无 key 也会尝试，因为它们自带 keyless 免费额度）→ 剩余免费引擎，搜索永不直接失败；结果顶部注明实际生效的引擎（如 `Note: perplexity unavailable or failed, using exa.`）
 - **时间过滤** —— `advanced_search` 工具支持 `timeRange`：固定档、自定义相对值、绝对日期三种形式（详见下方逻辑说明）
 - **系统提示词注入** —— agent 知道当前用哪个引擎、哪些需要 key
-- **版本号 + 检查更新** —— 设置卡片显示当前版本（v0.5.5），"检查更新"按钮直连 npm registry 对比最新版，有新版本时提示并可一键跳转
+- **版本号 + 检查更新** —— 设置卡片显示当前版本（v0.5.6），"检查更新"按钮直连 npm registry 对比最新版，有新版本时提示并可一键跳转
 - **结果缓存** —— 相同查询（含引擎/时间过滤参数）5 分钟内命中缓存（LRU 50 条），防免费引擎限流、省付费额度；时长可在设置页 0-5 分钟自由配置（0 关闭）
 - **免费标注** —— 设置页中免费引擎带绿色 `FREE` 徽章，付费引擎带橙色 `API KEY` 徽章
 - **网页抓取（web_fetch）** —— 让 agent 抓取网页内容（官方 `dsh-web-fetch-http` provider，纯 JS，零额外依赖）
@@ -81,8 +81,8 @@ dsh 默认的搜索 provider 依赖 DeepSeek 官方 API key（`DEEPSEEK_API_KEY`
 - **Key 配置**：在 AI Studio（aistudio.google.com/apikey）免费创建 `GEMINI_API_KEY`，放入 `~/.dsh/.credentials.yaml` 的 `refs.GEMINI_API_KEY`，或在 `~/.dsh/settings.yaml` 的 `free-search:` 下设置 `geminiApiKey`。
 - **模型**：默认 `gemini-2.5-flash`（免费层唯一已实测可联网的模型）。当前 AI Studio 免费层**无需绑卡**即可用 Google Search grounding。
 - **⚠️ 配额警示（务必注意）**：
-  - `gemini-2.5-flash` **文本输出 RPD 仅约 20/天** —— 千万别把它当常规文本问答模型用，会秒爆。本引擎只走 grounding（联网搜索），计的是**搜索 RPD**，不占那 20 次文本额度。
-  - **搜索 RPD 约 1,500/天**（与 Flash-Lite 共享），**RPM 约 5**。每次搜索引擎调用 = 1 次 grounded prompt = 1 搜索 RPD。超限会返回 HTTP 429，本插件会**自动回退到其它免费引擎**（Bing 等），搜索不会因此失败。
+  - `gemini-2.5-flash` **文本输出 RPD 仅约 20/天** —— 千万别把它当常规文本问答模型用，会秒爆。⚠️ **每次发起 grounded 搜索请求，模型生成过程会同时扣 1 次文本输出额度 + 1 次搜索接地额度**：因此那 **20 次文本输出 RPD 就是实际瓶颈**，即便搜索 RPD 高达约 1,500/天，实际每天都只能发起约 **20 次** grounded 搜索。
+  - **搜索 RPD 约 1,500/天**（与 Flash-Lite 共享），**RPM 约 5**。每次搜索引擎调用 = 1 次 grounded prompt = **同时耗 1 文本 + 1 搜索额度**。超限会返回 HTTP 429，本插件会**自动回退到其它免费引擎**（Bing 等），搜索不会因此失败。
   - 因此**不建议把 `gemini` 设为默认首选引擎**（`free-search.provider: gemini`），默认 `bing` + 失败自动回退即可；把 `gemini` 当按需/回退引擎最稳。
 - **与其它引擎差异**：Gemini grounding 返回的是"模型 Ground 到的来源集合"，不是像 Bing 那样的排序结果列表——数量不固定、通常偏少、无优先级；`maxResults` 只能做客户端截断。作为默认搜索体验与真实搜索引擎略有不同。
 
@@ -162,15 +162,15 @@ dsh plugin --profile web add @darlingc/dsh-freesearch --registry=https://npm.pkg
 <table align="center" style="border: none; border-collapse: collapse;">
   <tr style="border: none;">
     <td align="center" width="50%" style="border: none; padding: 6px;">
-      <a href="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-free.png">
-        <img src="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-free.png" alt="免费引擎设置" width="100%" />
+      <a href="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-free.png">
+        <img src="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-free.png" alt="免费引擎设置" width="100%" />
       </a>
       <br>
       <sub>▲ <b>免费引擎</b>（显示绿色 FREE 徽章与官网链接）</sub>
     </td>
     <td align="center" width="50%" style="border: none; padding: 6px;">
-      <a href="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-apikey.png">
-        <img src="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-apikey.png" alt="付费引擎设置" width="100%" />
+      <a href="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-apikey.png">
+        <img src="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-apikey.png" alt="付费引擎设置" width="100%" />
       </a>
       <br>
       <sub>▲ <b>付费/API Key 引擎</b>（显示橙色 API KEY 徽章与获取链接）</sub>
@@ -268,17 +268,6 @@ Search engine test:
 
 全部走公开 API，零外部依赖、无需任何 key，开箱即用。
 
-### 本地引擎切换工具（tools/）
-
-`tools/` 目录附带了一个本地切换小工具（零依赖）：
-
-- **`启动搜索引擎切换器.cmd`**（Windows）——双击启动本地 Node 服务（`http://127.0.0.1:4789`）并自动打开浏览器选择页面
-- **`switch-engine.html`** —— 选择页面：显示当前引擎，点选新引擎，一键写入配置
-- **`server.mjs`** —— 本地服务，负责读写 `~/.dsh/profiles/web/cordis.patch.yml`
-- **`switch-engine.ps1`** —— 无界面命令行版：`powershell -File tools/switch-engine.ps1 -Engine bing`
-
-切换后重启 `dsh web` 生效。
-
 > 配置卡片挂在官方设置页的 `settings.plugin.item` 插槽（dsh 自带），配置读写走插件自建 bridge，**不依赖 dsh-web-ui**，插件可独立使用。
 
 ### 代理说明（国内用户）
@@ -304,8 +293,8 @@ Windows 用户：桌面快捷方式已内置此配置（`set NODE_USE_ENV_PROXY=
 ## English
 
 <div align="center">
-  <a href="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-free1.png">
-    <img src="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-free1.png" alt="Free Engine Settings (Bing)" width="820" />
+  <a href="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-free1.png">
+    <img src="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-free1.png" alt="Free Engine Settings (Bing)" width="820" />
   </a>
   <br>
   <sub>▲ Free engine (using Bing as an example)</sub>
@@ -331,7 +320,7 @@ This plugin provides multiple free search engines with automatic fallback, compl
 - **Unified Engine Fallback** — Any engine failure (paid or free, missing key, 401, rate limit, network error) automatically tries the next engine: the configured engine first, then other engines (exa/tavily/keenable are tried even without a key because they have built-in keyless quota), then the remaining free engines (Bing/AnySearch etc.) — with a note attached to the results naming the engine that actually served them (e.g. `Note: perplexity unavailable or failed, using exa.`). Search never fails outright.
 - **Time Filtering** — The `advanced_search` tool supports `timeRange`: fixed tiers, custom relative values, or an absolute date (details below)
 - **System Prompt Injection** — The agent is aware of the currently active engine and which engines require API keys
-- **Version + Update Check** — The settings card shows the current version (v0.5.5), and a "Check update" button queries the npm registry to compare against the latest release, prompting a one-click jump when a newer version exists
+- **Version + Update Check** — The settings card shows the current version (v0.5.6), and a "Check update" button queries the npm registry to compare against the latest release, prompting a one-click jump when a newer version exists
 - **Result Caching** — Identical queries (same engine / time-filter args) hit an LRU cache (50 entries) for up to 5 minutes, protecting free engines from rate-limiting and saving paid quota; the TTL is configurable from 0-5 minutes in the settings UI (0 disables caching)
 - **Visual Badges** — Free engines feature a green `FREE` badge, while paid engines show an orange `API KEY` badge in the settings UI
 - **Webpage Fetching (`web_fetch`)** — Allows the agent to read full webpage contents (official `dsh-web-fetch-http` provider, pure JS, zero extra dependencies)
@@ -376,8 +365,8 @@ This plugin provides multiple free search engines with automatic fallback, compl
 - **Key**: create a free `GEMINI_API_KEY` at AI Studio (aistudio.google.com/apikey) and store it in `refs.GEMINI_API_KEY` under `~/.dsh/.credentials.yaml`, or set `geminiApiKey` under `free-search:` in `~/.dsh/settings.yaml`.
 - **Model**: defaults to `gemini-2.5-flash` (the only free-tier model verified to work online here). Google Search Grounding is available on the AI Studio **free tier with no credit card**.
 - **⚠️ Quota warning (important)**:
-  - `gemini-2.5-flash` has a **text-output RPD of only ~20/day** — do **not** use it as a general text model or you will exhaust it instantly. This engine only uses grounding (web search), which counts against the **search RPD**, not the text quota.
-  - **Search RPD ≈ 1,500/day** (shared with Flash-Lite), **RPM ≈ 5**. Each engine call = 1 grounded prompt = 1 search RPD. Exceeding it returns HTTP 429, and this plugin **auto-falls-back to other free engines** (Bing, etc.), so search never hard-fails.
+  - `gemini-2.5-flash` has a **text-output RPD of only ~20/day** — do **not** use it as a general text model or you will exhaust it instantly. ⚠️ **Each grounded search request consumes 1 text-output quota + 1 search-grounding quota simultaneously during generation**, so the **~20/day text-output RPD is the real bottleneck**: even though the search RPD is ~1,500/day, you can effectively make only about **20 grounded searches per day**.
+  - **Search RPD ≈ 1,500/day** (shared with Flash-Lite), **RPM ≈ 5**. Each engine call = 1 grounded prompt = **consumes 1 text + 1 search quota at once**. Exceeding it returns HTTP 429, and this plugin **auto-falls-back to other free engines** (Bing, etc.), so search never hard-fails.
   - So keep `provider: bing` as default and let `gemini` act as a fallback / on-demand engine rather than the primary load.
 - **Difference vs. other engines**: Gemini grounding returns the set of sources the model grounded on — not a ranked SERP list like Bing/DDG. Count is not fixed and is usually small, with no ordering; `maxResults` can only truncate client-side.
 
@@ -424,15 +413,15 @@ After installation, navigate to **Settings → Plugins → Configurable** tab �
 <table align="center" style="border: none; border-collapse: collapse;">
   <tr style="border: none;">
     <td align="center" width="50%" style="border: none; padding: 6px;">
-      <a href="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-free.png">
-        <img src="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-free.png" alt="Free Engine Settings" width="100%" />
+      <a href="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-free.png">
+        <img src="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-free.png" alt="Free Engine Settings" width="100%" />
       </a>
       <br>
       <sub>▲ <b>Free Engine</b> (shows green FREE badge and official website link)</sub>
     </td>
     <td align="center" width="50%" style="border: none; padding: 6px;">
-      <a href="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-apikey.png">
-        <img src="https://raw.githubusercontent.com/DDDMUC/dsh-free-search/master/assets/settings-apikey.png" alt="Paid/API Key Engine Settings" width="100%" />
+      <a href="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-apikey.png">
+        <img src="https://raw.githubusercontent.com/DarlingC/dsh-freesearch/master/assets/settings-apikey.png" alt="Paid/API Key Engine Settings" width="100%" />
       </a>
       <br>
       <sub>▲ <b>Paid / API Key Engine</b> (shows orange API KEY badge and link to get an API key)</sub>
@@ -529,17 +518,6 @@ Ask the agent to search specific platforms (e.g., *"Search GitHub for deepseek h
 | `npm` | npm package search (registry official API) |
 
 All platform searches rely on public endpoints with zero external dependencies and no API keys — they work out of the box.
-
-### Local Engine Switcher (`tools/`)
-
-The `tools/` directory includes a lightweight, zero-dependency switcher:
-
-- **`启动搜索引擎切换器.cmd`** (Windows) — Double-click to launch a local Node server (`http://127.0.0.1:4789`) and automatically open the engine selector page in your browser.
-- **`switch-engine.html`** — The selector UI: displays current engine status and allows one-click switching.
-- **`server.mjs`** — The local backend service responsible for reading/writing `~/.dsh/profiles/web/cordis.patch.yml`.
-- **`switch-engine.ps1`** — Headless PowerShell script: `powershell -File tools/switch-engine.ps1 -Engine bing`.
-
-Restart `dsh web` after switching to apply changes.
 
 > The settings card mounts into the official `settings.plugin.item` slot (built into DSH), and configuration reads/writes go through the plugin's own bridge. **No `dsh-web-ui` dependency — the plugin can be used standalone.**
 

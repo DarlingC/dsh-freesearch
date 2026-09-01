@@ -7,7 +7,7 @@ Real reproduction of the community-index claim for `@darlingc/dsh-freesearch`
 - **Environment**: independent temporary DSH_HOME (untouched daily 3080/3090)
 - **DSH**: 0.1.1-rc.2
 - **Plugin source**: this repo (`DarlingC/dsh-freesearch`), released as
-  `@darlingc/dsh-freesearch@0.5.5` (npm)
+  `@darlingc/dsh-freesearch@0.5.6` (npm)
 - **Date**: 2026-08-28
 
 ## Steps
@@ -15,8 +15,8 @@ Real reproduction of the community-index claim for `@darlingc/dsh-freesearch`
 ### 1. Real install from npm
 
 ```console
-$ dsh plugin --profile web add @darlingc/dsh-freesearch@0.5.5
-+ @darlingc/dsh-freesearch 0.5.5
+$ dsh plugin --profile web add @darlingc/dsh-freesearch@0.5.6
++ @darlingc/dsh-freesearch 0.5.6
 Packages: +4
 Done in 582ms using pnpm v11.21.0
 ```
@@ -71,7 +71,7 @@ Re-run of the same seam checks against the newest DSH pre-release
 
 | Check | Result on alpha.1 |
 |-------|-------------------|
-| `dsh plugin add @darlingc/dsh-freesearch@0.5.5` (real npm) | installed |
+| `dsh plugin add @darlingc/dsh-freesearch@0.5.6` (real npm) | installed |
 | `--dump-config` → `web.searchProvider` | `ddg` (takeover works) |
 | settings bridge `POST /api/dsh-free-search-settings/describe` | `ok:true, ns:free-search` |
 | raw search, no API key | `ok:true provider:bing cache:miss sources:2 first:https://deepseek.com/en/index.html` |
