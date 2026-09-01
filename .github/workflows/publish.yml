@@ -1,19 +1,28 @@
 # @darlingc/dsh-freesearch — CI 自动提交到 npm 暂存队列（Staged Publishing）+ 自动建 GitHub Release
 # 触发：push 到 v* tag（例如 v0.5.0）或手动 workflow_dispatch。
-# 流程：1) CI 用 `npm stage publish` 把本版本提交到 npm “Staged Packages” 暂存队列
-#          （此步骤不会触发账号 2FA，也不需要 OTP）。
-#       之后由维护者在 npmjs.com 网页对暂存包人工 Approve / Promote（提示词用户
-#       是设备认证，能通过该 2FA），Promote 后才真正对外可安装。
-#       2) 用 softprops/action-gh-release 为该 tag 自动建 GitHub Release
-#          （generate_release_notes: true，自动汇总 PR/提交生成 changelog）。
-#          Release 创建不依赖 npm 的 stage/approve 结果，二者互不阻塞。
+# 流程：1) stage job 用 `npm stage publish` 把本版本提交到 npm “Staged Packages”
+#          暂存队列（此步骤不会触发账号 2FA，也不需要 OTP）。之后由维护者在
+#          npmjs.com 网页对暂存包人工 Approve / Promote（提示词用户是设备认证，
+#          能通过该 2FA），Promote 后才真正对外可安装。
+#       2) release job 用 softprops/action-gh-release 为该 tag 自动建 GitHub
+#          Release（generate_release_notes: true，自动汇总 PR/提交生成 changelog）。
+#
+# ⚠️ 关键设计：Release 与 npm 发布**解耦**。
+#   - `stage`（npm 发布）与 `release`（建 GitHub Release）是两个**独立 job**。
+#     `release` 用 `needs: [stage]` + `if: ${{ !cancelled() && always() }}`，
+#     因此即使 stage job 中任意一步失败（含 pnpm install —— 例如 lockfile 漂移、
+#     网络抖动等 CI 环境问题，或未配 NPM_TOKEN 的 npm 步骤），release job 仍会
+#     照常执行；只有整个 run 被 cancelled 时它才不跑。
+#   - 为避免在“明显 broken”的 tag 上误建 Release（JS 语法错、版本失配），
+#     release job 在真正建 Release 前先自行跑一遍轻量校验（node --check +
+#     check-version.mjs，均不依赖 node_modules），校验不过则中止不建。
 #
 # ⚠️ 依赖：
 #   1) 本 workflow 要走“CI 代发 npm 暂存”才需要 npm 发布凭证：在仓库配置 GitHub
 #      Actions secret 名为 `NPM_TOKEN`（npmjs.com → Access Tokens → Generate New
 #      → 类型选 Publish → 把生成的值作为 secret 存入本仓库）。
 #      Staged 提交本身不会触发账号 2FA/OTP；未配 NPM_TOKEN 时该步骤会失败，但
-#      已用 continue-on-error 隔离，不影响建 Release。
+#      stage job 内已用 continue-on-error 隔离，且 release 是独立 job，不受影响。
 #   2) 该包必须先已存在于 npm registry 才能被 stage（首次发布无法用 stage）：
 #      npmjs.com 上 @darlingc/dsh-freesearch 需先有一次正式发布。
 #      （首次发布可由维护者在本地/网页用设备认证完成，之后才走本 workflow。）
@@ -66,7 +75,7 @@ jobs:
           npm pack --dry-run
           # 版本一致性兜底：package.json / lib/index.js / lib/client.js 三处
           # PLUGIN_VERSION 一旦不一致（如 0.5.1→0.5.2 只改 package.json 漏改
-          # PLUGIN_VERSION 的事故），这里直接退出码 1，阻止 stage 与建 Release。
+          # PLUGIN_VERSION 的事故），这里直接退出码 1，阻止 stage。
           node scripts/check-version.mjs
 
       - name: Stage publish to npm (defer 2FA to web approve)
@@ -74,16 +83,43 @@ jobs:
         # “Staged Packages” 中 Approve/Promote 才真正对外发布。
         # 需要 NPM_TOKEN secret（认证用；staged 提交不触发交互式 2FA）。
         #
-        # ⚠️ continue-on-error: true —— npm 步骤的结果不得影响建 Release。
-        #   维护者默认“本机发布 npm、不走 CI/CD”，未配 NPM_TOKEN 时本步骤会失败，
-        #   而此时我们仍要自动建 Release。开 continue-on-error 后该失败只作为
-        #   步骤告警呈现，不会让 job 失败、也不会阻断后续 Release 步骤。
-        #   （不能把 secrets 直接写进 if: —— GitHub Actions 不允许；故选此解法，
-        #    与文件头“二者互不阻塞”的意图一致。）
+        # ⚠️ continue-on-error: true —— npm 步骤即使失败，也只作为步骤告警呈现，
+        #   不会让 stage job 失败。维护者默认“本机发布 npm、不走 CI/CD”，未配
+        #   NPM_TOKEN 时本步骤会失败，但我们仍要自动建 Release（release 本就是
+        #   独立 job，且这里 continue-on-error 可避免多余的红叉告警）。
         continue-on-error: true
         run: npm stage publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release:
+    name: Create GitHub Release
+    # 独立 job，与 npm 发布解耦：
+    #   needs: [stage] 保证在 stage 之后按其结果排序；
+    #   if: !cancelled() && always() 保证 stage 无论成败（install/smoke/npm 任一
+    #     失败都算）release 都会执行，只有整个 run 被取消才不跑。
+    #   这是修复“run 3 中 Install dependencies 失败 → 整 job 失败 → Release 被
+    #   skip”问题的关键：Release 创建不再被前置步骤的默认 success() 拦死。
+    runs-on: ubuntu-latest
+    needs: [stage]
+    if: ${{ !cancelled() && always() }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate tag before creating Release (avoid creating a release for an obviously broken tag)
+        # 轻量“明显 broken”闸门：不依赖 node_modules（无需 pnpm install，天然对
+        # install 失败免疫）。JS 语法错 / 三处版本失配 会让本步退出码 1，从而
+        # 中止创建 Release —— 防止误导性 Release 写进仓库。
+        run: |
+          node --check lib/index.js
+          node --check lib/client.js
+          node scripts/check-version.mjs
 
       - name: Create GitHub Release
         # 为该 v* tag 自动建 GitHub Release。用 softprops/action-gh-release@v2，
@@ -91,13 +127,6 @@ jobs:
         # 选自动生成而非“用 git tag message 作 body”：现有 tag 多为轻量 tag
         # （无附注消息），用 tag message 会得到空 body；自动生成始终有内容更省心。
         # 依赖顶部 permissions 已提升为 contents: write。
-        #
-        # 触发条件用默认 success()（不再写 if: always()）：
-        #   - 只在 checkout / install / smoke（含 check-version）都通过后才建
-        #     Release —— broken tag（如 JS 语法错、npm pack 失败、版本失配）在此
-        #     被拦下，不再创建误导用户的 Release。
-        #   - 与 npm stage 步骤天然解耦：npm 步骤失败因上方 continue-on-error
-        #     不阻断本步骤；二者互不阻塞，符合文件头注释意图。
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
